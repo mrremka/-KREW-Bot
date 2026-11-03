@@ -105,7 +105,7 @@ class NewsletterTests(unittest.TestCase):
 
     def test_release_notes_markup(self):
         version,message=parse_release_notes(ROOT)
-        self.assertEqual(version,'1.0.0-rc.2')
+        self.assertEqual(version,(ROOT/'VERSION').read_text(encoding='utf8').strip())
         self.assertIn('KREW',message)
         self.assertIn('/news off',message)
 
