@@ -63,7 +63,7 @@ Telegram-группа  →  KREW Bot  →  модерация и события
   </tr>
   <tr>
     <td><strong>Последний выпуск</strong></td>
-    <td><a href="https://github.com/mrremka/-KREW-Bot/releases/latest">GitHub Releases</a> · <a href="https://github.com/mrremka/-KREW-Bot/releases/tag/v1.0.0-rc.3">RC3</a></td>
+    <td><a href="https://github.com/mrremka/-KREW-Bot/releases">GitHub Releases</a> · <a href="https://github.com/mrremka/-KREW-Bot/releases/tag/v1.0.0-rc.3">RC3</a></td>
   </tr>
   <tr>
     <td><strong>Что изменилось</strong></td>
