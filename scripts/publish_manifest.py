@@ -7,9 +7,14 @@ import argparse
 import base64
 import json
 import os
+import sys
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
+
+ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT))
+from updater import parse_version
 
 API='https://api.github.com'
 
@@ -44,7 +49,6 @@ def publish(repo: str, channel: str, manifest: Path, token: str):
         raise ValueError('Wrong manifest channel')
     # Never roll back the public update pointer to an older version.
     if existing:
-        from updater import parse_version
         old_data=json.loads(base64.b64decode(existing['content']).decode('utf8'))
         if parse_version(old_data['version'])>parse_version(new_data['version']):
             raise ValueError('Refusing to publish an older manifest')
