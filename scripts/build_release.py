@@ -11,8 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 IGNORE = {'.env', '.git', '.github', '.krew_updates', 'data', 'logs', 'backups',
           'scripts', 'updates', '__pycache__', 'dist', '.pytest_cache'}
 ROOT_FILES = {'VERSION','main.py','launcher.py','updater.py','upgrade.py','backup.py',
-              'release_check.py','README.md','CHANGELOG.md','RELEASE_CHECKLIST.md',
-              'AUTO_UPDATE_GUIDE.md','START_WINDOWS.txt','Dockerfile','compose.yaml',
+              'release_check.py','README.md','CHANGELOG.md','Dockerfile','compose.yaml',
               '.dockerignore','.gitignore','.env.example','release_notes.json'}
 
 
