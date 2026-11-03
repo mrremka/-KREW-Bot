@@ -208,6 +208,9 @@ class BotCore:
             if cmd in {"status", "version"}:
                 self.send(chat_id, runtime_status())
                 return
+            if cmd == "ping":
+                self.send(chat_id, f"🏓 Pong! KREW <code>{esc(installed_version())}</code> работает.")
+                return
             if cmd == "start" and uid:
                 self.db.register_private(uid)
             if cmd == "news" and uid:

@@ -69,6 +69,7 @@ def run():
             api.call("setMyCommands", commands=[
                 {"command":"help", "description":"Справка по KREW"},
                 {"command":"version", "description":"Версия KREW"},
+                {"command":"ping", "description":"Проверить работу бота"},
                 {"command":"status", "description":"Проверка работы KREW"},
                 {"command":"pin", "description":"Закрепить сообщение (админ)"},
                 {"command":"unpin", "description":"Открепить сообщение (админ)"},
