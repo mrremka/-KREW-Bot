@@ -67,7 +67,7 @@ def run():
         # Telegram command menu. Non-fatal if insufficient permissions or API failure.
         try:
             api.call("setMyCommands", commands=[
-                {"command":"help", "description":"Справка по KREW"},
+                {"command":"help", "description":"Интерактивное меню KREW"},
                 {"command":"version", "description":"Версия KREW"},
                 {"command":"ping", "description":"Проверить работу бота"},
                 {"command":"status", "description":"Проверка работы KREW"},
@@ -83,7 +83,7 @@ def run():
                 {"command":"myreports", "description":"Мои жалобы и решения (в личке)"},
                 {"command":"notify", "description":"Управление уведомлениями (ЛС)"},
                 {"command":"news", "description":"Новости обновлений: /news on|off"},
-                {"command":"stats", "description":"Статистика группы (админ)"},
+                {"command":"stats", "description":"Статистика · таблица (админ)"},
                 {"command":"profile", "description":"Мой профиль и уровень"},
                 {"command":"top", "description":"Рейтинг активности"},
                 {"command":"daily", "description":"Ежедневная награда"},

@@ -40,9 +40,9 @@ class LaunchTests(unittest.TestCase):
         self.bot.on_message(msg)
 
     def test_version_from_installed_file(self):
-        self.assertEqual(installed_version(), '1.0.0-rc.6')
+        self.assertEqual(installed_version(), '1.0.0-rc.7')
         self.group(5, '/version')
-        self.assertIn('1.0.0-rc.6', self.api.calls[-1][1]['text'])
+        self.assertIn('1.0.0-rc.7', self.api.calls[-1][1]['text'])
 
     def test_private_status_does_not_leak_secrets(self):
         with patch.dict('os.environ', {'WEBAPP_URL': 'https://example.com',
@@ -58,7 +58,7 @@ class LaunchTests(unittest.TestCase):
         self.group(5, '/status')
         self.assertIn('только администраторам', self.api.calls[-1][1]['text'])
         self.group(1, '/status')
-        self.assertIn('KREW работает', self.api.calls[-1][1]['text'])
+        self.assertIn('KREW · Статус', self.api.calls[-1][1]['rich_message']['html'])
 
     def test_regular_user_cannot_pin_or_unpin(self):
         self.group(5, '/pin', reply=91)

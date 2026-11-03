@@ -23,10 +23,10 @@ def parse_release_notes(base: Path) -> tuple[str, str]:
         raise ValueError('Некорректный список изменений')
     content = '\n'.join('• ' + html.escape(change) for change in changes)
     # Never send a url supplied by an unknown external manifest.
-    content = (f'🚀 <b>{html.escape(title)}</b>\n'
-               f'Версия: <code>{html.escape(version)}</code>\n\n{content}\n\n'
-               'Спасибо, что используешь KREW!\n'
-               'Управлять новостями: /news off')
+    content = (f'✦ <b>KREW · Обновление</b>\n'
+               f'<code>{html.escape(version)}</code>\n\n'
+               f'<b>{html.escape(title)}</b>\n\n{content}\n\n'
+               '<i>Уведомления о версиях: /news off</i>')
     if len(content) > 3900:
         raise ValueError('Слишком длинная рассылка')
     return version, content

@@ -12,6 +12,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from krew.db import Database
 from krew.api import TelegramError
+from krew.ui import help_page, keyboard as help_keyboard, report as ui_report
 from krew.rules import FloodGuard, clean_word, contains_blocked_word, disallowed_link, normalize_domain, excessive_mentions, excessive_caps
 
 LOGGER = logging.getLogger("krew")
@@ -103,6 +104,44 @@ class BotCore:
         return self.call("sendMessage", chat_id=chat_id, text=text, parse_mode="HTML",
                          link_preview_options={"is_disabled": True}, **options)
 
+    def send_rich(self, chat_id: int, rich_html: str, fallback_html: str, **options):
+        """Use modern Telegram tables when supported, otherwise show the same data.
+
+        Retry only for documented format/unknown-method errors, not network
+        timeouts or ambiguous failures (which could cause duplicate messages).
+        """
+        try:
+            return self.call('sendRichMessage', chat_id=chat_id,
+                             rich_message={'html': rich_html}, **options)
+        except TelegramError as exc:
+            if exc.status_code not in (400, 404):
+                raise
+            LOGGER.info('Rich message unavailable; using regular HTML')
+            return self.send(chat_id, fallback_html, **options)
+
+    def show_help(self, chat_id: int, *, private: bool = False) -> None:
+        plain, _ = help_page('home')
+        panel = os.getenv('WEBAPP_URL', '').strip() if private else ''
+        self.send(chat_id, plain, reply_markup=help_keyboard('home', private=private, panel_url=panel))
+
+    def update_help(self, chat_id: int, message_id: int, page: str, *, private: bool = False) -> None:
+        plain, rich = help_page(page)
+        panel = os.getenv('WEBAPP_URL', '').strip() if private else ''
+        keys = help_keyboard(page, private=private, panel_url=panel)
+        try:
+            if page == 'home':
+                self.call('editMessageText', chat_id=chat_id, message_id=message_id,
+                          text=plain, parse_mode='HTML', reply_markup=keys)
+            else:
+                self.call('editMessageText', chat_id=chat_id, message_id=message_id,
+                          rich_message={'html': rich}, reply_markup=keys)
+        except TelegramError as exc:
+            if page == 'home' or exc.status_code not in (400, 404):
+                raise
+            LOGGER.info('Rich help page unsupported; using regular HTML')
+            self.call('editMessageText', chat_id=chat_id, message_id=message_id,
+                      text=plain, parse_mode='HTML', reply_markup=keys)
+
     def is_admin(self, chat_id: int, user_id: int, fresh: bool = False) -> bool:
         key = (chat_id, user_id)
         now = time.monotonic()
@@ -150,7 +189,15 @@ class BotCore:
         chat_id = chat.get("id")
         answer = "Кнопка больше недоступна"
         try:
-            if data.startswith("cfg:") and chat_id and chat.get("type") in ("group", "supergroup"):
+            if data.startswith('help:') and chat_id and chat.get('type') in ('private', 'group', 'supergroup'):
+                page = data.partition(':')[2]
+                if page == 'close':
+                    self.call('deleteMessage', chat_id=chat_id, message_id=msg['message_id'])
+                    answer = 'Справка закрыта'
+                elif page in ('home','start','games','shield','moderation','analytics','personal'):
+                    self.update_help(chat_id, msg['message_id'], page, private=chat.get('type')=='private')
+                    answer = 'KREW · Справка'
+            elif data.startswith("cfg:") and chat_id and chat.get("type") in ("group", "supergroup"):
                 if not self.is_admin(chat_id, from_user.get("id", 0), fresh=True):
                     answer = "Только для администраторов"
                 else:
@@ -298,7 +345,7 @@ class BotCore:
             self.moderate(msg, self.db.ensure_chat(chat["id"], chat.get("title", "")), user, edited=True)
 
     def private_help(self, chat_id: int, command: str) -> None:
-        if command == "panel" or (command == "start" and os.getenv("WEBAPP_URL", "").startswith("https://")):
+        if command == "panel":
             url = os.getenv("WEBAPP_URL", "").strip()
             if url.startswith("https://"):
                 self.send(chat_id,"🛡 <b>KREW Control Center</b>\nУправляй настройками своих групп в Mini App.",
@@ -309,7 +356,7 @@ class BotCore:
         if command == "privacy":
             self.send(chat_id, "🔐 <b>Приватность KREW</b>\nБот хранит ID чатов и пользователей, имена, счётчики активности, монеты, предупреждения, настройки, причины решений по жалобам и ограниченный журнал модерации (30 дней). <b>Содержимое сообщений не сохраняется</b>. Для добровольной рассылки новостей хранится флаг подписки и статус доставки по версии. Сообщения обрабатываются для антиспама и фильтров. Уведомления: /notify on|off и /news on|off.")
             return
-        self.send(chat_id, "<b>Привет! Это KREW 1.0 RC.</b> 🛡️🎲\n\nЯ объединяю защиту групповых чатов и развлечения участников.\n\nДобавь меня в группу как администратора с правами удаления и ограничения участников, затем напиши <code>/setup</code>.\n\nКоманды: /help в группе.\nЖалобы: /myreports · Уведомления о жалобах: /notify on|off\nНовости релизов (по желанию): /news on|off\nПриватность: /privacy")
+        self.show_help(chat_id, private=True)
 
     def words(self, chat_id: int) -> list[str]:
         # Rule edits in the Mini App must take effect on the very next message.
@@ -384,29 +431,35 @@ class BotCore:
             self.send(chat_id, f"🏷 <b>KREW</b> · версия <code>{esc(installed_version())}</code>")
             return
         if cmd in {"start", "help"}:
-            self.send(chat_id, "<b>🛡️ KREW 1.0 RC — команды</b>\n\n<b>Участникам:</b> /rules /profile /top /daily /mission /claim /thanks /roll /coin /eightball /duel /quiz /rps /fortune /shop /buy /achievements\n<b>Жалобы:</b> /report ответом на сообщение; в личке: /myreports /notify on|off /news on|off\n\n<b>Администраторам:</b> /panel /setup /diagnostics /stats /digest /reports /shield /mentionlimit /raid /warn /warnings /unwarn /mute /unmute /kick /ban /unban /badword /allowlink /setrules /welcometext /warnlimit /modlog /status /pin /unpin\n\nДля наказания отвечай командой на сообщение. Версия: /version")
+            self.show_help(chat_id)
             return
         if cmd == "rules":
-            self.send(chat_id, "📜 <b>Правила чата</b>\n" + esc(self.db.get_chat(chat_id)["rules"]))
+            self.send(chat_id, "📜 <b>Правила чата</b>\n\n" + esc(self.db.get_chat(chat_id)["rules"]))
             return
         if cmd == "profile":
             target = (msg.get("reply_to_message") or {}).get("from") or user
             p = self.db.profile(chat_id, target["id"], human_name(target))
             warnings = self.db.get_warn(chat_id, target["id"])
             badge = BADGES.get(p["active_badge"], ("Нет", 0))[0]
-            self.send(chat_id, f"👤 <b>Профиль</b> — {mention(target)}\n🏅 Уровень: <b>{level(p['xp'])}</b>\n✨ Опыт: {p['xp']}\n💬 Сообщений: {p['messages']}\n🪙 Монеты: {p['coins']}\n🎨 Значок: {badge}\n💜 Благодарности: {p['reputation']}\n⚠️ Предупреждения: {warnings}")
+            rows = [('Уровень', str(level(p['xp']))), ('Опыт', str(p['xp'])),
+                    ('Сообщений', str(p['messages'])), ('Монеты', str(p['coins'])),
+                    ('Значок', badge), ('Благодарности', str(p['reputation'])),
+                    ('Предупреждения', str(warnings))]
+            plain, rich = ui_report('👤 KREW · Профиль', rows,
+                                    'Профиль участника: ' + human_name(target))
+            self.send_rich(chat_id, rich, plain)
             return
         if cmd == "achievements":
             p = self.db.profile(chat_id, user_id, human_name(user))
             milestones = [(10, "💬 Первые сообщения", p["messages"]), (100, "🔥 Активист", p["messages"]),
                           (500, "🏆 Легенда чата", p["messages"]), (7, "🎁 Неделя подряд", p["daily_streak"])]
             rows = [f"{'✅' if progress >= target else '🔒'} {name}: {progress}/{target}" for target, name, progress in milestones]
-            self.send(chat_id, "🏅 <b>Твои достижения</b>\n" + "\n".join(rows))
+            self.send(chat_id, "🏅 <b>Достижения</b>\n\n" + "\n".join(rows))
             return
         if cmd == "top":
             top = self.db.top(chat_id)
             ranking = "\n".join(f"{n}. {esc(p['name'] or 'Участник')} — {p['xp']} XP" for n, p in enumerate(top, 1))
-            self.send(chat_id, "🏆 <b>Топ активности</b>\n" + (ranking or "Пока нет статистики."))
+            self.send(chat_id, "🏆 <b>Топ активности</b>\n\n" + (ranking or "Пока нет статистики."))
             return
         if cmd == "report":
             self.report_command(msg, user)
@@ -441,11 +494,13 @@ class BotCore:
             if cmd == 'status':
                 cfg = self.db.get_chat(chat_id)
                 st = self.db.stats(chat_id)
-                self.send(chat_id, runtime_status() +
-                          f"\n🛡 Антиспам: {'✅' if cfg['antispam'] else '⏸'}" +
-                          f"\n🚩 Открытых жалоб: {st['reports']}" +
-                          f"\n⚠️ Активных предупреждений: {st['warnings']}" +
-                          "\n🧰 Проверить права бота: /diagnostics")
+                status_rows = [('Версия', installed_version()),
+                               ('Антиспам', 'Включён' if cfg['antispam'] else 'Выключен'),
+                               ('Открытых жалоб', str(st['reports'])),
+                               ('Предупреждений', str(st['warnings']))]
+                fallback, rich = ui_report('🟢 KREW · Статус', status_rows,
+                                           'Проверка прав: /diagnostics')
+                self.send_rich(chat_id, rich, fallback)
             elif cmd == 'pin':
                 reply = msg.get('reply_to_message') or {}
                 target_message = reply.get('message_id')
@@ -453,7 +508,7 @@ class BotCore:
                     raise ValueError('Ответь /pin на сообщение, которое нужно закрепить.')
                 self.call('pinChatMessage', chat_id=chat_id, message_id=target_message, disable_notification=True)
                 self.db.log_action(chat_id, admin_id, admin_id, 'pin', f'message {target_message}')
-                self.send(chat_id, '📌 Сообщение закреплено.')
+                self.send(chat_id, '📌 <b>Закреплено</b>\nСообщение теперь вверху чата.')
             elif cmd == 'unpin':
                 reply = msg.get('reply_to_message') or {}
                 target_message = reply.get('message_id')
@@ -462,7 +517,7 @@ class BotCore:
                     params['message_id'] = target_message
                 self.call('unpinChatMessage', **params)
                 self.db.log_action(chat_id, admin_id, admin_id, 'unpin', f'message {target_message or "latest"}')
-                self.send(chat_id, '📌 Закрепление снято.')
+                self.send(chat_id, '📌 <b>Откреплено</b>\nЗакрепление снято.')
             elif cmd == "panel":
                 url = f"https://t.me/{self.username}?start=panel" if self.username else ""
                 self.send(chat_id, "📲 <b>KREW Panel</b>\nОткрой личный чат с ботом и отправь /panel." +
@@ -506,7 +561,14 @@ class BotCore:
                 self.send(chat_id, f"✅ Лимит упоминаний: {int(args)}")
             elif cmd == "stats":
                 st = self.db.stats(chat_id)
-                self.send(chat_id, f"📊 <b>Статистика KREW</b>\n👥 Участников в учёте: {st['members']}\n💬 Сообщений обработано для статистики: {st['messages']}\n⚠️ Активных предупреждений: {st['warnings']}\n🚩 Открытых жалоб: {st['reports']}\n🛡 Действий модерации за 30 дней: {st['actions']}\n\nУчёт ведётся только с момента запуска бота.")
+                rows = [('Участников', str(st['members'])),
+                        ('Сообщений', str(st['messages'])),
+                        ('Предупреждений', str(st['warnings'])),
+                        ('Открытых жалоб', str(st['reports'])),
+                        ('Действий за 30 дней', str(st['actions']))]
+                fallback, rich = ui_report('📊 KREW · Статистика', rows,
+                                           'Данные собираются с момента запуска бота.')
+                self.send_rich(chat_id, rich, fallback)
             elif cmd == "reports":
                 count = self.db.stats(chat_id)["reports"]
                 keyboard = {"inline_keyboard": [[{"text": "🔐 Открыть жалобы в личке",
