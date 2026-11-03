@@ -8,7 +8,7 @@
     <img src="https://github.com/mrremka/-KREW-Bot/actions/workflows/ci.yml/badge.svg?branch=main" alt="KREW CI" />
   </a>
   <a href="https://github.com/mrremka/-KREW-Bot/releases">
-    <img src="https://img.shields.io/badge/version-1.0.0--rc.3-8A80EA?style=flat" alt="Версия 1.0.0 RC3" />
+    <img src="https://img.shields.io/badge/version-1.0.0--rc.4-8A80EA?style=flat" alt="Версия 1.0.0 RC3" />
   </a>
   <img src="https://img.shields.io/badge/Python-3.11%2B-367CA4?style=flat&logo=python&logoColor=white" alt="Python 3.11+" />
   <img src="https://img.shields.io/badge/Telegram-Mini%20App-229ED9?style=flat&logo=telegram&logoColor=white" alt="Telegram Mini App" />
@@ -39,6 +39,7 @@
 | 🎛️ | **Control Center** | Настройки группы, инструменты модераторов, аналитика и история действий в Telegram Mini App. |
 | ✨ | **Community** | Профили, XP, уровни, достижения, игровые монеты, задания и рейтинги. |
 | 🔄 | **Updates** | GitHub Releases, проверка целостности обновлений, резервные копии и новости версий по подписке. |
+| 📌 | **Tools** | Проверка `/status` и `/version`, закрепление сообщений администраторами через `/pin` и `/unpin`. |
 
 ## Как устроен KREW
 
@@ -59,11 +60,11 @@ Telegram-группа  →  KREW Bot  →  модерация и события
 <table>
   <tr>
     <td><strong>Текущая версия</strong></td>
-    <td><code>1.0.0-rc.3</code> · release candidate</td>
+    <td><code>1.0.0-rc.4</code> · release candidate</td>
   </tr>
   <tr>
     <td><strong>Последний выпуск</strong></td>
-    <td><a href="https://github.com/mrremka/-KREW-Bot/releases">GitHub Releases</a> · <a href="https://github.com/mrremka/-KREW-Bot/releases/tag/v1.0.0-rc.3">RC3</a></td>
+    <td><a href="https://github.com/mrremka/-KREW-Bot/releases">GitHub Releases</a> · <a href="https://github.com/mrremka/-KREW-Bot/releases/tag/v1.0.0-rc.4">RC3</a></td>
   </tr>
   <tr>
     <td><strong>Что изменилось</strong></td>
