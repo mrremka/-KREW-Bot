@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="390" viewBox="0 0 1200 390" role="img" aria-labelledby="title desc">
+<title id="title">KREW — Telegram community management</title>
+<desc id="desc">Dark indigo product banner featuring KREW, chat protection, reports and Mini App interface.</desc>
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop stop-color="#0A1327"/><stop offset=".58" stop-color="#101A31"/><stop offset="1" stop-color="#1B2040"/>
+  </linearGradient>
+  <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#61D7FF"/><stop offset="1" stop-color="#9D8CFF"/></linearGradient>
+  <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#243653" stop-opacity=".93"/><stop offset="1" stop-color="#1C2942" stop-opacity=".94"/></linearGradient>
+  <radialGradient id="glow"><stop stop-color="#544EEA" stop-opacity=".4"/><stop offset="1" stop-color="#544EEA" stop-opacity="0"/></radialGradient>
+  <pattern id="grid" width="31" height="31" patternUnits="userSpaceOnUse"><path d="M31 0H0V31" fill="none" stroke="#7492B9" stroke-opacity=".085" stroke-width="1"/></pattern>
+  <filter id="shadow" x="-30%" y="-40%" width="170%" height="180%"><feDropShadow dx="0" dy="18" stdDeviation="23" flood-color="#000817" flood-opacity=".35"/></filter>
+</defs>
+<rect width="1200" height="390" rx="26" fill="url(#bg)"/>
+<rect width="1200" height="390" rx="26" fill="url(#grid)"/>
+<circle cx="980" cy="180" r="300" fill="url(#glow)"/>
+<circle cx="1064" cy="356" r="252" fill="none" stroke="#7592F1" stroke-opacity=".14" stroke-width="1"/>
+<circle cx="1082" cy="354" r="183" fill="none" stroke="#7592F1" stroke-opacity=".12" stroke-width="1"/>
+<path d="M52 47H85" stroke="url(#accent)" stroke-width="4" stroke-linecap="round"/>
+<text x="101" y="54" fill="#94ACCF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" letter-spacing="3.4" font-weight="700">COMMUNITY SYSTEM</text>
+<text x="76" y="187" fill="#F4F7FF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="112" font-weight="800" letter-spacing="-6">KREW</text>
+<rect x="78" y="206" width="52" height="4" rx="2" fill="url(#accent)"/>
+<text x="78" y="253" fill="#E3ECFF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="24" font-weight="600">Спокойный чат. Сильное сообщество.</text>
+<text x="78" y="286" fill="#A7B8D1" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17">Модерация, аналитика и игровые механики</text>
+<rect x="78" y="317" width="187" height="34" rx="17" fill="#263D56" stroke="#567A9E" stroke-opacity=".7"/>
+<circle cx="98" cy="334" r="5" fill="#6BE0C1"/>
+<text x="113" y="339" fill="#DCEBFA" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="12" font-weight="700" letter-spacing="1">RELEASE CANDIDATE</text>
+<g filter="url(#shadow)">
+  <rect x="746" y="67" width="378" height="268" rx="23" fill="url(#glass)" stroke="#7898CA" stroke-opacity=".28"/>
+  <rect x="746" y="67" width="378" height="45" rx="23" fill="#344364" fill-opacity=".47"/>
+  <path d="M746 93H1124" stroke="#7898CA" stroke-opacity=".16"/>
+  <circle cx="777" cy="89" r="5" fill="#87A2C5" fill-opacity=".7"/>
+  <circle cx="793" cy="89" r="5" fill="#87A2C5" fill-opacity=".4"/>
+  <circle cx="809" cy="89" r="5" fill="#87A2C5" fill-opacity=".25"/>
+  <text x="844" y="94" fill="#D8E5FA" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="12" font-weight="700" letter-spacing="2">KREW CONTROL</text>
+  <rect x="769" y="130" width="332" height="58" rx="12" fill="#142D42" stroke="#5AAECA" stroke-opacity=".2"/>
+  <rect x="783" y="142" width="35" height="35" rx="10" fill="#274F62"/>
+  <path d="M800.5 149L810 153V160C810 166 806 170 800.5 172C795 170 791 166 791 160V153Z" fill="none" stroke="#85EAD4" stroke-width="2"/>
+  <path d="M796 160L799 163L805 157" fill="none" stroke="#85EAD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="831" y="153" fill="#F2F8FF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="16" font-weight="700">Защита чата</text>
+  <text x="831" y="171" fill="#ABC4D7" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="12">Фильтры · предупреждения · анти-рейд</text>
+  <rect x="769" y="198" width="159" height="113" rx="12" fill="#1A304D" stroke="#9DAEFF" stroke-opacity=".18"/>
+  <rect x="785" y="213" width="30" height="30" rx="9" fill="#3B416F"/>
+  <path d="M793 223H807M793 229H803M793 235H805" stroke="#BBC0FF" stroke-width="2" stroke-linecap="round"/>
+  <text x="785" y="268" fill="#F1F5FF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="16" font-weight="700">Жалобы</text>
+  <text x="785" y="287" fill="#9BB3CF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="12">Решения и история</text>
+  <rect x="941" y="198" width="160" height="113" rx="12" fill="#1A304D" stroke="#9DAEFF" stroke-opacity=".18"/>
+  <rect x="958" y="213" width="30" height="30" rx="9" fill="#3B416F"/>
+  <rect x="966" y="219" width="14" height="17" rx="3" stroke="#C7C0FF" fill="none" stroke-width="1.8"/>
+  <path d="M969 224H977M969 229H975" stroke="#C7C0FF" stroke-width="1.5" stroke-linecap="round"/>
+  <text x="958" y="268" fill="#F1F5FF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="16" font-weight="700">Mini App</text>
+  <text x="958" y="287" fill="#9BB3CF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="12">Управление и данные</text>
+</g>
+</svg>
