@@ -1,0 +1,44 @@
+name: Publish KREW release
+on:
+  push:
+    tags:
+      - 'v[0-9]*'
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Use Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test KREW
+        run: python -m unittest discover -s tests -v
+      - name: Build and verify release zip
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          REPOSITORY: ${{ github.repository }}
+        run: python scripts/build_release.py --repository "$REPOSITORY" --tag "$RELEASE_TAG" --out dist
+      - name: Publish immutable versioned release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if [[ "$RELEASE_TAG" == *-rc.* ]]; then
+            gh release create "$RELEASE_TAG" dist/krew-update.zip --notes-file dist/RELEASE_NOTES.md --title "KREW $RELEASE_TAG" --verify-tag --prerelease --latest=false
+          else
+            gh release create "$RELEASE_TAG" dist/krew-update.zip --notes-file dist/RELEASE_NOTES.md --title "KREW $RELEASE_TAG" --verify-tag
+          fi
+      - name: Update trusted manifest in repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if [[ "$RELEASE_TAG" == *-rc.* ]]; then CHANNEL=beta; else CHANNEL=stable; fi
+          python scripts/publish_manifest.py --repository "$REPOSITORY" --channel "$CHANNEL" --file "dist/$CHANNEL.json"

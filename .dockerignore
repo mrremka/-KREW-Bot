@@ -1,0 +1,11 @@
+.env
+.git
+__pycache__
+*.pyc
+*.pyo
+logs/
+data/
+backups/
+tests/
+*.zip
+.krew_updates/
