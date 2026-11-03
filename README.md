@@ -1,30 +1,23 @@
 <div align="center">
-  <img src="assets/krew-cover.svg" alt="KREW — система управления Telegram-сообществами" width="100%" />
+  <img src="assets/krew-cover.svg" alt="KREW — Telegram community system" width="100%" />
 
-  <br />
-  <br />
+  <br /><br />
 
   <a href="https://github.com/mrremka/-KREW-Bot/actions/workflows/ci.yml">
-    <img src="https://github.com/mrremka/-KREW-Bot/actions/workflows/ci.yml/badge.svg?branch=main" alt="KREW CI" />
+    <img alt="KREW CI" src="https://github.com/mrremka/-KREW-Bot/actions/workflows/ci.yml/badge.svg?branch=main" />
   </a>
   <a href="https://github.com/mrremka/-KREW-Bot/releases">
-    <img src="https://img.shields.io/badge/version-1.0.0--rc.7-8A80EA?style=flat" alt="Версия 1.0.0 RC7" />
+    <img alt="Beta releases" src="https://img.shields.io/badge/channel-beta-9384F7" />
   </a>
-  <img src="https://img.shields.io/badge/Python-3.11%2B-367CA4?style=flat&logo=python&logoColor=white" alt="Python 3.11+" />
-  <img src="https://img.shields.io/badge/Telegram-Mini%20App-229ED9?style=flat&logo=telegram&logoColor=white" alt="Telegram Mini App" />
+  <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-367CA4?logo=python&logoColor=white" />
 
-  <h3>Один бот. Порядок в чате. Живое сообщество.</h3>
-
-  <p>
-    KREW объединяет инструменты модерации, обработку жалоб, аналитику
-    и развлечения в единой системе для Telegram-групп.
-  </p>
+  <h3>Порядок в чате. Живое сообщество.</h3>
+  <p>Модерация, аналитика и игровые механики в одном Telegram-боте.</p>
 
   <p>
     <a href="#возможности">Возможности</a> ·
-    <a href="#как-устроен-krew">Как устроен</a> ·
-    <a href="#релизы">Релизы</a> ·
-    <a href="#статус-проекта">Статус</a>
+    <a href="#проект">Проект</a> ·
+    <a href="#релизы">Релизы</a>
   </p>
 </div>
 
@@ -32,52 +25,39 @@
 
 ## Возможности
 
-| | Модуль | Что внутри |
-| :---: | --- | --- |
-| 🛡️ | **Shield** | Антиспам, ссылки, запрещённые слова, CAPS, массовые упоминания, капча и анти-рейд. |
-| ⚖️ | **Reports** | Жалобы на сообщения, решения с указанием причины, журнал рассмотрений и личные уведомления. |
-| 🎛️ | **Control Center** | Настройки группы, инструменты модераторов, аналитика и история действий в Telegram Mini App. |
-| ✨ | **Community** | Профили, XP, уровни, достижения, игровые монеты, задания и рейтинги. |
-| 🔄 | **Updates** | GitHub Releases, проверка целостности обновлений, резервные копии и новости версий по подписке. |
-| 📌 | **Tools** | Проверка `/status` и `/version`, закрепление сообщений администраторами через `/pin` и `/unpin`. |
+| Модуль | Что умеет |
+| --- | --- |
+| **Shield** 🛡️ | Антиспам, фильтрация ссылок, капча, анти-рейд и предупреждения |
+| **Reports** ⚖️ | Жалобы с причинами решений, журнал модерации и уведомления |
+| **Control** 🎛️ | Telegram Mini App: настройки групп, статистика и действия администраторов |
+| **Community** ✨ | Профили, XP, уровни, игровые монеты, задания и рейтинги |
+| **Interface** ◈ | Интерактивное меню `/help`, компактные сообщения и таблицы с запасным форматом |
+| **Updates** ↻ | Проверяемые обновления, резервные копии и автоматическая публикация релизов |
 
-## Как устроен KREW
+## Проект
 
-<pre>
-Telegram-группа  →  KREW Bot  →  модерация и события
-                         │
-                         ├── SQLite · история и настройки
-                         ├── Mini App · управление и аналитика
-                         └── GitHub · код и релизы
-</pre>
+```text
+KREW
+├── krew/            ядро бота, база данных и Mini App
+├── scripts/         автоматическая сборка релизов
+├── tests/           автоматические проверки
+├── updates/         каналы версий
+├── main.py          точка входа бота
+├── launcher.py      контроль процесса и автообновление
+└── updater.py       проверка, установка и откат обновлений
+```
 
-**Технологии:** Python 3.11+, Telegram Bot API, SQLite, веб-интерфейс Mini App и GitHub Actions.
-
-**Принцип:** функции защиты и развлечения работают в одном боте, но настройки и данные разных групп разделены.
+**Стек:** Python 3.11+, Telegram Bot API, SQLite, Telegram Mini App и GitHub Actions.
 
 ## Релизы
 
-<table>
-  <tr>
-    <td><strong>Текущая версия</strong></td>
-    <td><code>1.0.0-rc.7</code> · release candidate</td>
-  </tr>
-  <tr>
-    <td><strong>Последний выпуск</strong></td>
-    <td><a href="https://github.com/mrremka/-KREW-Bot/releases">GitHub Releases</a> · <a href="https://github.com/mrremka/-KREW-Bot/releases/tag/v1.0.0-rc.7">RC7</a></td>
-  </tr>
-  <tr>
-    <td><strong>Что изменилось</strong></td>
-    <td><a href="CHANGELOG.md">История версий</a></td>
-  </tr>
-</table>
+- [**GitHub Releases**](https://github.com/mrremka/-KREW-Bot/releases) — архивы и описание каждой версии
+- [**Changelog**](CHANGELOG.md) — история изменений
+- [**VERSION**](VERSION) — текущая версия исходного кода
+- [**CI**](https://github.com/mrremka/-KREW-Bot/actions/workflows/ci.yml) — результат автоматических проверок
 
-Новые сборки публикуются через GitHub Actions после автоматических проверок. Краткое описание обновления включается в каждый релиз.
-
-## Статус проекта
-
-> **KREW находится на стадии релиз-кандидата.** Основные функции и автоматические тесты реализованы, но перед стабильной версией ещё необходимы полноценные проверки в реальных Telegram-группах, с HTTPS и под нагрузкой.
+KREW находится на стадии **release candidate**. Автоматические тесты проходят, но проверка в реальных группах и под нагрузкой продолжается.
 
 <div align="center">
-  <sub>Designed for better Telegram communities · KREW</sub>
+  <sub>KREW · Built for better Telegram communities</sub>
 </div>

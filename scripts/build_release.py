@@ -1,4 +1,4 @@
-"""Build an upgrade zip and manifest for a trusted public GitHub repository."""
+"""Build a minimal, verified KREW runtime update archive."""
 from __future__ import annotations
 import argparse
 import hashlib
@@ -10,9 +10,10 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 IGNORE = {'.env', '.git', '.github', '.krew_updates', 'data', 'logs', 'backups',
           'scripts', 'updates', '__pycache__', 'dist', '.pytest_cache'}
-ROOT_FILES = {'VERSION','main.py','launcher.py','updater.py','upgrade.py','backup.py',
-              'release_check.py','README.md','CHANGELOG.md','Dockerfile','compose.yaml',
-              '.dockerignore','.gitignore','.env.example','release_notes.json'}
+# Only runtime files are distributed. Tests, Docker and docs remain in GitHub.
+ROOT_FILES = {'VERSION', 'main.py', 'launcher.py', 'updater.py',
+              'upgrade.py', 'backup.py', 'release_check.py',
+              '.env.example', 'release_notes.json'}
 
 
 def build(repo: str, tag: str, out: Path) -> dict:
@@ -35,7 +36,7 @@ def build(repo: str, tag: str, out: Path) -> dict:
             continue
         if len(relative.parts)==1 and file.name not in ROOT_FILES:
             continue
-        if len(relative.parts)>1 and relative.parts[0] not in ('krew','tests'):
+        if len(relative.parts)>1 and relative.parts[0] != 'krew':
             continue
         included.append((relative.as_posix(),file))
     included.sort()
