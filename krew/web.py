@@ -187,8 +187,10 @@ class Application:
 class Handler(BaseHTTPRequestHandler):
     server_version = "KREW-web"
     def log_message(self, fmt, *args):
-        # Do not log Telegram auth headers, cookies, or user data.
-        LOG.info("%s %s", self.address_string(), fmt % args)
+        """Avoid recording request lines and query strings in access logs."""
+        method = self.command if getattr(self, "command", None) in {"GET", "POST", "PATCH", "HEAD"} else "OTHER"
+        code = str(args[1]) if fmt == '"%s" %s %s' and len(args) == 3 and str(args[1]).isdigit() else "unknown"
+        LOG.info("HTTP %s response=%s", method, code)
 
     def _write(self, code, blob: bytes, content_type="application/json; charset=utf-8"):
         self.send_response(code)
