@@ -68,6 +68,10 @@ def run():
         try:
             api.call("setMyCommands", commands=[
                 {"command":"help", "description":"Справка по KREW"},
+                {"command":"version", "description":"Версия KREW"},
+                {"command":"status", "description":"Проверка работы KREW"},
+                {"command":"pin", "description":"Закрепить сообщение (админ)"},
+                {"command":"unpin", "description":"Открепить сообщение (админ)"},
                 {"command":"panel", "description":"Панель управления Mini App"},
                 {"command":"digest", "description":"Сводка активности за неделю (админ)"},
                 {"command":"setup", "description":"Панель настроек администратора"},
