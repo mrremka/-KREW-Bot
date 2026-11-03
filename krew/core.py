@@ -2,6 +2,7 @@
 from __future__ import annotations
 import html
 import os
+from pathlib import Path
 from collections import defaultdict, deque
 import logging
 import random
@@ -40,9 +41,24 @@ QUIZZES = [
 ]
 BADGES = {"spark": ("✨ Искра", 40), "heart": ("💜 Сердце", 100), "star": ("⭐ Звезда", 220), "crown": ("👑 Корона", 500)}
 LABELS = {"antispam": "Антиспам", "antilinks": "Защита от ссылок", "antiforward": "Запрет пересылок", "antiraid": "Авто-анти-рейд", "captcha": "Проверка новичков", "welcome": "Приветствия", "fun": "Развлечения", "levels": "Уровни", "antimentions": "Массовые упоминания", "anticaps": "CAPS-спам"}
-ADMIN_COMMANDS = {"setup", "warn", "warnings", "unwarn", "mute", "unmute", "ban", "kick", "unban", "badword", "setrules", "modlog", "warnlimit", "welcometext", "allowlink", "raid", "reports", "stats", "diagnostics", "panel", "digest", "shield", "mentionlimit"}
+ADMIN_COMMANDS = {"status", "pin", "unpin", "setup", "warn", "warnings", "unwarn", "mute", "unmute", "ban", "kick", "unban", "badword", "setrules", "modlog", "warnlimit", "welcometext", "allowlink", "raid", "reports", "stats", "diagnostics", "panel", "digest", "shield", "mentionlimit"}
 FUN_COMMANDS = {"daily", "roll", "coin", "eightball", "duel", "quiz", "fortune", "shop", "buy", "rps", "achievements", "mission", "claim", "thanks"}
 COMMAND_PATTERN = re.compile(r"^/([\w]+)(?:@([\w]+))?(?:\s+([\s\S]*))?$", re.UNICODE)
+
+def installed_version() -> str:
+    """Read installed version at call time, including after updates."""
+    try:
+        return (Path(__file__).resolve().parents[1] / 'VERSION').read_text(encoding='utf-8').strip() or 'unknown'
+    except OSError:
+        return 'unknown'
+
+
+def runtime_status() -> str:
+    """Public, non-secret status summary; never show tokens or local paths."""
+    version = esc(installed_version())
+    panel = '✅ Подключена' if os.getenv('ENABLE_WEB', '1') == '1' and os.getenv('WEBAPP_URL', '').startswith('https://') else '⏸ Не подключена к Telegram'
+    return f'🟢 <b>KREW работает</b>\n🏷 Версия: <code>{version}</code>\n📲 Mini App: {panel}'
+
 
 def esc(text: object) -> str:
     return html.escape(str(text), quote=False)
@@ -189,6 +205,9 @@ class BotCore:
             return
         if kind == "private":
             uid=int(user.get("id") or 0)
+            if cmd in {"status", "version"}:
+                self.send(chat_id, runtime_status())
+                return
             if cmd == "start" and uid:
                 self.db.register_private(uid)
             if cmd == "news" and uid:
@@ -285,7 +304,7 @@ class BotCore:
                 self.send(chat_id,"⚙️ Мини-приложение ещё не настроено. В .env укажи WEBAPP_URL=https://ваш-домен.")
             return
         if command == "privacy":
-            self.send(chat_id, "🔐 <b>Приватность KREW</b>\nБот хранит ID чатов и пользователей, имена, счётчики активности, монеты, предупреждения, настройки, причины решений по жалобам и ограниченный журнал модерации (30 дней). <b>Содержимое сообщений не сохраняется</b>. Для добровольной рассылки новостей хранится флаг подписки и статус доставки по версии. Сообщения обрабатываются для антиспама и фильтров. Подробнее — README в исходниках.")
+            self.send(chat_id, "🔐 <b>Приватность KREW</b>\nБот хранит ID чатов и пользователей, имена, счётчики активности, монеты, предупреждения, настройки, причины решений по жалобам и ограниченный журнал модерации (30 дней). <b>Содержимое сообщений не сохраняется</b>. Для добровольной рассылки новостей хранится флаг подписки и статус доставки по версии. Сообщения обрабатываются для антиспама и фильтров. Уведомления: /notify on|off и /news on|off.")
             return
         self.send(chat_id, "<b>Привет! Это KREW 1.0 RC.</b> 🛡️🎲\n\nЯ объединяю защиту групповых чатов и развлечения участников.\n\nДобавь меня в группу как администратора с правами удаления и ограничения участников, затем напиши <code>/setup</code>.\n\nКоманды: /help в группе.\nЖалобы: /myreports · Уведомления о жалобах: /notify on|off\nНовости релизов (по желанию): /news on|off\nПриватность: /privacy")
 
@@ -358,8 +377,11 @@ class BotCore:
 
     def command(self, msg: dict, cmd: str, args: str, user: dict, cached_admin: bool) -> None:
         chat_id, user_id = msg["chat"]["id"], user["id"]
+        if cmd == "version":
+            self.send(chat_id, f"🏷 <b>KREW</b> · версия <code>{esc(installed_version())}</code>")
+            return
         if cmd in {"start", "help"}:
-            self.send(chat_id, "<b>🛡️ KREW 1.0 RC — команды</b>\n\n<b>Участникам:</b> /rules /profile /top /daily /mission /claim /thanks /roll /coin /eightball /duel /quiz /rps /fortune /shop /buy /achievements\n<b>Жалобы:</b> /report ответом на сообщение; в личке: /myreports /notify on|off /news on|off\n\n<b>Администраторам:</b> /panel /setup /diagnostics /stats /digest /reports /shield /mentionlimit /raid /warn /warnings /unwarn /mute /unmute /kick /ban /unban /badword /allowlink /setrules /welcometext /warnlimit /modlog\n\nПодробнее и примеры — в README. Для наказания отвечай командой на сообщение.")
+            self.send(chat_id, "<b>🛡️ KREW 1.0 RC — команды</b>\n\n<b>Участникам:</b> /rules /profile /top /daily /mission /claim /thanks /roll /coin /eightball /duel /quiz /rps /fortune /shop /buy /achievements\n<b>Жалобы:</b> /report ответом на сообщение; в личке: /myreports /notify on|off /news on|off\n\n<b>Администраторам:</b> /panel /setup /diagnostics /stats /digest /reports /shield /mentionlimit /raid /warn /warnings /unwarn /mute /unmute /kick /ban /unban /badword /allowlink /setrules /welcometext /warnlimit /modlog /status /pin /unpin\n\nДля наказания отвечай командой на сообщение. Версия: /version")
             return
         if cmd == "rules":
             self.send(chat_id, "📜 <b>Правила чата</b>\n" + esc(self.db.get_chat(chat_id)["rules"]))
@@ -413,7 +435,32 @@ class BotCore:
     def admin_command(self, msg: dict, cmd: str, args: str, actor: dict) -> None:
         chat_id, admin_id = msg["chat"]["id"], actor["id"]
         try:
-            if cmd == "panel":
+            if cmd == 'status':
+                cfg = self.db.get_chat(chat_id)
+                st = self.db.stats(chat_id)
+                self.send(chat_id, runtime_status() +
+                          f"\n🛡 Антиспам: {'✅' if cfg['antispam'] else '⏸'}" +
+                          f"\n🚩 Открытых жалоб: {st['reports']}" +
+                          f"\n⚠️ Активных предупреждений: {st['warnings']}" +
+                          "\n🧰 Проверить права бота: /diagnostics")
+            elif cmd == 'pin':
+                reply = msg.get('reply_to_message') or {}
+                target_message = reply.get('message_id')
+                if not isinstance(target_message, int) or target_message <= 0:
+                    raise ValueError('Ответь /pin на сообщение, которое нужно закрепить.')
+                self.call('pinChatMessage', chat_id=chat_id, message_id=target_message, disable_notification=True)
+                self.db.log_action(chat_id, admin_id, admin_id, 'pin', f'message {target_message}')
+                self.send(chat_id, '📌 Сообщение закреплено.')
+            elif cmd == 'unpin':
+                reply = msg.get('reply_to_message') or {}
+                target_message = reply.get('message_id')
+                params = {'chat_id': chat_id}
+                if isinstance(target_message, int) and target_message > 0:
+                    params['message_id'] = target_message
+                self.call('unpinChatMessage', **params)
+                self.db.log_action(chat_id, admin_id, admin_id, 'unpin', f'message {target_message or "latest"}')
+                self.send(chat_id, '📌 Закрепление снято.')
+            elif cmd == "panel":
                 url = f"https://t.me/{self.username}?start=panel" if self.username else ""
                 self.send(chat_id, "📲 <b>KREW Panel</b>\nОткрой личный чат с ботом и отправь /panel." +
                           ("\n" + esc(url) if url else ""))
@@ -561,7 +608,7 @@ class BotCore:
         except ValueError as exc:
             self.send(chat_id, "ℹ️ " + esc(exc))
         except TelegramError:
-            self.send(chat_id, "❌ Не удалось выполнить действие. Проверь, что бот — администратор с правами удаления сообщений и блокировки пользователей. Для мута нужна супергруппа.")
+            self.send(chat_id, "❌ Не удалось выполнить действие. Проверь права администратора у бота (в том числе право закрепления сообщений) через настройки группы и /diagnostics.")
 
     def fun_command(self, msg: dict, cmd: str, args: str, user: dict) -> None:
         chat_id, user_id = msg["chat"]["id"], user["id"]
