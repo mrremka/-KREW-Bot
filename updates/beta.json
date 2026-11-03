@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "channel": "beta",
-  "version": "1.0.0-rc.4",
-  "url": "https://github.com/mrremka/-KREW-Bot/releases/download/v1.0.0-rc.4/krew-update.zip",
-  "sha256": "eb9a1623dff6b248f507cc9eef26dfe1c0acc7fdbfc5ff4108182ccc7abe5e9d"
+  "version": "1.0.0-rc.5",
+  "url": "https://github.com/mrremka/-KREW-Bot/releases/download/v1.0.0-rc.5/krew-update.zip",
+  "sha256": "2dcf25374390a8217998241efb1f5759f87ab0a713f69c653605c1d4899c84fa"
 }
