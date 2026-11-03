@@ -1,0 +1,36 @@
+name: KREW CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python 3.11 tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate syntax
+        run: python -m compileall -q main.py launcher.py updater.py krew scripts tests
+      - name: Run automated tests
+        run: python -m unittest discover -s tests -v
+      - name: Check release metadata
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          version = Path('VERSION').read_text(encoding='utf-8').strip()
+          metadata = json.loads(Path('release_notes.json').read_text(encoding='utf-8'))
+          assert metadata['version'] == version, 'VERSION and release_notes.json disagree'
+          print('Validated release metadata:', version)
+          PY
