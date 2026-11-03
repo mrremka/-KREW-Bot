@@ -1,15 +1,24 @@
 name: Publish KREW release
 on:
   push:
-    tags:
-      - 'v[0-9]*'
+    branches: [main]
+    paths:
+      - VERSION
+      - release_notes.json
+  workflow_dispatch:
+
 permissions:
   contents: write
+
+concurrency:
+  group: krew-release
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout release tag
+      - name: Checkout release commit
         uses: actions/checkout@v4
         with:
           persist-credentials: false
@@ -17,28 +26,45 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Read and validate version metadata
+        id: version
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          version=Path('VERSION').read_text(encoding='utf8').strip()
+          notes=json.loads(Path('release_notes.json').read_text(encoding='utf8'))
+          if not version or notes.get('version') != version:
+              raise SystemExit('VERSION and release_notes.json must match')
+          with open(Path(__import__('os').environ['GITHUB_OUTPUT']), 'a') as out:
+              out.write(f'tag=v{version}\n')
+          PY
       - name: Test KREW
         run: python -m unittest discover -s tests -v
-      - name: Build and verify release zip
+      - name: Build and verify release ZIP
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
           REPOSITORY: ${{ github.repository }}
         run: python scripts/build_release.py --repository "$REPOSITORY" --tag "$RELEASE_TAG" --out dist
-      - name: Publish immutable versioned release
+      - name: Publish immutable GitHub Release
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
         run: |
-          if [[ "$RELEASE_TAG" == *-rc.* ]]; then
-            gh release create "$RELEASE_TAG" dist/krew-update.zip --notes-file dist/RELEASE_NOTES.md --title "KREW $RELEASE_TAG" --verify-tag --prerelease --latest=false
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Existing release $RELEASE_TAG is immutable; not replacing assets."
+          elif [[ "$RELEASE_TAG" == *-rc.* ]]; then
+            gh release create "$RELEASE_TAG" dist/krew-update.zip --target "$GITHUB_SHA" --notes-file dist/RELEASE_NOTES.md --title "KREW $RELEASE_TAG" --prerelease --latest=false
           else
-            gh release create "$RELEASE_TAG" dist/krew-update.zip --notes-file dist/RELEASE_NOTES.md --title "KREW $RELEASE_TAG" --verify-tag
+            gh release create "$RELEASE_TAG" dist/krew-update.zip --target "$GITHUB_SHA" --notes-file dist/RELEASE_NOTES.md --title "KREW $RELEASE_TAG"
           fi
-      - name: Update trusted manifest in repository
+      - name: Update trusted manifest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPOSITORY: ${{ github.repository }}
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
         run: |
           if [[ "$RELEASE_TAG" == *-rc.* ]]; then CHANNEL=beta; else CHANNEL=stable; fi
           python scripts/publish_manifest.py --repository "$REPOSITORY" --channel "$CHANNEL" --file "dist/$CHANNEL.json"
