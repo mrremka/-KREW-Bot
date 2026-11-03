@@ -1,0 +1,20 @@
+services:
+  krew:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      WEB_HOST: 0.0.0.0
+      WEB_PORT: 8090
+    ports:
+      - "127.0.0.1:8090:8090"
+    volumes:
+      - krew_data:/app/data
+      - krew_logs:/app/logs
+      - krew_backups:/app/backups
+    security_opt:
+      - no-new-privileges:true
+volumes:
+  krew_data:
+  krew_logs:
+  krew_backups:
