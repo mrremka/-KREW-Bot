@@ -22,10 +22,10 @@ class PingSmokeTests(unittest.TestCase):
         self.bot=BotCore(self.api,self.db,"krew_test")
     def test_ping_private_reports_new_version(self):
         self.bot.on_message({"chat":{"id":23,"type":"private"},"from":{"id":23},"message_id":1,"text":"/ping"})
-        self.assertEqual(installed_version(),"1.0.0-rc.5")
+        self.assertEqual(installed_version(),"1.0.0-rc.6")
         message=[v for m,v in self.api.calls if m=="sendMessage"][-1]["text"]
         self.assertIn("Pong",message)
-        self.assertIn("1.0.0-rc.5",message)
+        self.assertIn("1.0.0-rc.6",message)
     def test_ping_does_not_change_user_subscriptions(self):
         self.bot.on_message({"chat":{"id":23,"type":"private"},"from":{"id":23},"message_id":1,"text":"/ping"})
         self.assertFalse(self.db.news_enabled(23))

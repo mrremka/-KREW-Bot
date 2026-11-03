@@ -8,7 +8,7 @@
     <img src="https://github.com/mrremka/-KREW-Bot/actions/workflows/ci.yml/badge.svg?branch=main" alt="KREW CI" />
   </a>
   <a href="https://github.com/mrremka/-KREW-Bot/releases">
-    <img src="https://img.shields.io/badge/version-1.0.0--rc.5-8A80EA?style=flat" alt="Версия 1.0.0 RC5" />
+    <img src="https://img.shields.io/badge/version-1.0.0--rc.6-8A80EA?style=flat" alt="Версия 1.0.0 RC6" />
   </a>
   <img src="https://img.shields.io/badge/Python-3.11%2B-367CA4?style=flat&logo=python&logoColor=white" alt="Python 3.11+" />
   <img src="https://img.shields.io/badge/Telegram-Mini%20App-229ED9?style=flat&logo=telegram&logoColor=white" alt="Telegram Mini App" />
@@ -60,11 +60,11 @@ Telegram-группа  →  KREW Bot  →  модерация и события
 <table>
   <tr>
     <td><strong>Текущая версия</strong></td>
-    <td><code>1.0.0-rc.5</code> · release candidate</td>
+    <td><code>1.0.0-rc.6</code> · release candidate</td>
   </tr>
   <tr>
     <td><strong>Последний выпуск</strong></td>
-    <td><a href="https://github.com/mrremka/-KREW-Bot/releases">GitHub Releases</a> · <a href="https://github.com/mrremka/-KREW-Bot/releases/tag/v1.0.0-rc.5">RC5</a></td>
+    <td><a href="https://github.com/mrremka/-KREW-Bot/releases">GitHub Releases</a> · <a href="https://github.com/mrremka/-KREW-Bot/releases/tag/v1.0.0-rc.6">RC6</a></td>
   </tr>
   <tr>
     <td><strong>Что изменилось</strong></td>
