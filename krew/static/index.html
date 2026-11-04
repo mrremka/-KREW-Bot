@@ -1,3 +1,70 @@
 <!doctype html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#0d1018"><title>KREW — Control Center</title><link rel="stylesheet" href="style.css"><script src="https://telegram.org/js/telegram-web-app.js"></script><script defer src="app.js"></script></head>
-<body><div class="shell"><aside class="sidebar"><div class="brand"><div class="brand-icon">✳</div><div><b>KREW</b><small>CONTROL CENTER <span class="version">1.0 RC</span></small></div></div><div class="caption">РАБОЧЕЕ ПРОСТРАНСТВО</div><div class="select-wrap"><select id="chat" aria-label="Выбрать чат"><option>Загрузка чатов...</option></select></div><nav id="navigation" aria-label="Разделы"><button data-page="overview" class="nav active">◫ <span>Обзор</span></button><button data-page="settings" class="nav">⚙ <span>Модерация</span></button><button data-page="reports" class="nav">⚑ <span>Жалобы</span></button><button data-page="analytics" class="nav">▥ <span>Аналитика</span></button><button data-page="rulesets" class="nav">◈ <span>Фильтры</span></button><button data-page="community" class="nav">♡ <span>Сообщество</span></button><button data-page="audit" class="nav">☷ <span>Аудит</span></button></nav><div class="sidebar-bottom"><span class="signal"></span><span>Система управления</span><small id="footer-state">Ожидание</small></div></aside><main><header class="topbar"><div><div class="eyebrow">ПАНЕЛЬ УПРАВЛЕНИЯ / <span id="crumb">ОБЗОР</span></div><h1 id="heading">Обзор сообщества</h1><p id="subtitle">Ваше пространство для управления и аналитики.</p></div><div class="head-actions"><div class="avatar">K</div></div></header><div class="notice" id="notice" hidden></div><section id="content" class="content"></section><footer class="main-footer">KREW © 2026 <span>•</span> Продуманное управление сообществом</footer></main></div></body></html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0c1018">
+  <meta name="description" content="KREW Control Center — защита и управление Telegram-сообществами">
+  <title>KREW — Control Center</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" aria-label="Рабочее пространство">
+    <div class="sidebar-header">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">✳</div>
+        <div class="brand-name"><b>KREW</b><small>CONTROL CENTER <span class="version">2.0</span></small></div>
+      </div>
+      <div class="workspace">
+        <span class="workspace-label">РАБОЧЕЕ ПРОСТРАНСТВО</span>
+        <div class="select-wrap">
+          <span class="workspace-mark" aria-hidden="true">◈</span>
+          <select id="chat" aria-label="Выбрать сообщество"><option>Загрузка сообществ…</option></select>
+          <span class="chevron" aria-hidden="true">⌄</span>
+        </div>
+      </div>
+    </div>
+    <nav id="navigation" aria-label="Разделы панели">
+      <button type="button" data-page="overview" class="nav active"><span class="nav-icon" aria-hidden="true">◈</span><span>Обзор</span></button>
+      <button type="button" data-page="analytics" class="nav"><span class="nav-icon" aria-hidden="true">▤</span><span>Аналитика</span></button>
+      <button type="button" data-page="reports" class="nav"><span class="nav-icon" aria-hidden="true">⚑</span><span>Жалобы</span></button>
+      <button type="button" data-page="settings" class="nav"><span class="nav-icon" aria-hidden="true">☷</span><span>Модерация</span></button>
+      <button type="button" data-page="rulesets" class="nav"><span class="nav-icon" aria-hidden="true">⌗</span><span>Фильтры</span></button>
+      <button type="button" data-page="community" class="nav"><span class="nav-icon" aria-hidden="true">✧</span><span>Сообщество</span></button>
+      <button type="button" data-page="audit" class="nav"><span class="nav-icon" aria-hidden="true">≡</span><span>Журнал</span></button>
+      <button type="button" id="more-button" class="nav nav-more" aria-controls="more-menu" aria-expanded="false" aria-label="Другие разделы"><span class="nav-icon" aria-hidden="true">•••</span><span>Ещё</span></button>
+    </nav>
+    <div class="more-menu" id="more-menu" aria-label="Другие разделы" hidden>
+      <button type="button" data-extra-page="rulesets"><span aria-hidden="true">⌗</span> Умные фильтры</button>
+      <button type="button" data-extra-page="community"><span aria-hidden="true">✧</span> Сообщество</button>
+      <button type="button" data-extra-page="audit"><span aria-hidden="true">≡</span> Журнал действий</button>
+    </div>
+    <div class="sidebar-bottom">
+      <span class="status-line"><span class="signal" aria-hidden="true"></span><span>Система управления</span></span>
+      <small id="footer-state">Подключение…</small>
+      <span class="sidebar-footnote">KREW · Telegram community tools</span>
+    </div>
+  </aside>
+  <main id="main" tabindex="-1">
+    <header class="topbar">
+      <div class="topbar-text">
+        <div class="eyebrow">KREW <span class="eyebrow-dot">/</span> <span id="crumb">ОБЗОР</span></div>
+        <h1 id="heading">Обзор сообщества</h1>
+        <p id="subtitle">Ваше пространство для управления и аналитики.</p>
+      </div>
+      <div class="head-actions">
+        <button type="button" id="refresh-button" class="refresh-button" aria-label="Обновить данные" title="Обновить данные"><span aria-hidden="true">↻</span></button>
+        <div class="avatar" aria-hidden="true">K</div>
+      </div>
+    </header>
+    <div class="notice" id="notice" role="status" aria-live="polite" hidden></div>
+    <section id="content" class="content" aria-live="polite" aria-busy="true"></section>
+    <footer class="main-footer">KREW <span class="footer-sep">·</span> Управляй сообществом, а не бесконечными командами.</footer>
+  </main>
+</div>
+</body>
+</html>

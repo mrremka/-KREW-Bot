@@ -40,9 +40,9 @@ class LaunchTests(unittest.TestCase):
         self.bot.on_message(msg)
 
     def test_version_from_installed_file(self):
-        self.assertEqual(installed_version(), '1.0.0-rc.7')
+        self.assertEqual(installed_version(), '1.0.0-rc.8')
         self.group(5, '/version')
-        self.assertIn('1.0.0-rc.7', self.api.calls[-1][1]['text'])
+        self.assertIn('1.0.0-rc.8', self.api.calls[-1][1]['text'])
 
     def test_private_status_does_not_leak_secrets(self):
         with patch.dict('os.environ', {'WEBAPP_URL': 'https://example.com',
