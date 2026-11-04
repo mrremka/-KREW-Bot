@@ -97,6 +97,15 @@ function fake(path,method,payload){
     return {status,notification_status:"sent",warning_recorded:status==="warned"};
   }
   if(path.endsWith("/analytics"))return {timeline:Array.from({length:14},(_,i)=>({day:new Date(Date.now()-(13-i)*86400000).toISOString().slice(0,10),messages:Math.round(90+Math.sin(i*1.8)*55+(i*19)%38),joins:6,actions:i%3})),stats:d.stats,top:[{name:"Alex",xp:1240,messages:234},{name:"Mira",xp:1120,messages:210}]};
+  if(path.endsWith("/roles")){
+    d.roles=d.roles||[{user_id:101,name:"Мира",tag:"Активист"},{user_id:102,name:"Алексей",tag:"VIP"}];
+    if(method==="POST"){
+      const uid=payload.user_id,tag=payload.tag;
+      d.roles=d.roles.filter(x=>x.user_id!==uid);
+      if(tag)d.roles.unshift({user_id:uid,name:"Участник #"+uid,tag});
+    }
+    return {roles:[...d.roles]};
+  }
   if(path.endsWith("/community"))return {community:{active_today:38,claimed_today:12,thanks_today:9,mission_goal:5,mission_reward:35,top_reputation:[{user_id:101,name:"Мира",reputation:18},{user_id:102,name:"Алексей",reputation:13},{user_id:103,name:"Саша",reputation:9}]}};
   if(path.endsWith("/audit"))return {audit:[{field:"captcha",old_value:"0",new_value:"1",actor_id:123,created:Math.floor(Date.now()/1000)-3600},{field:"antiraid",old_value:"0",new_value:"1",actor_id:123,created:Math.floor(Date.now()/1000)-3600}],recent:d.recent};
   if(path.endsWith("/rulesets"))return {words:d.words||["спам","оскорбление"],domains:d.domains||["youtube.com"]};
@@ -437,7 +446,11 @@ async function renderAudit(){
 
 /* KREW 0.6: Community dashboard. Server data only in authenticated mode. */
 async function renderCommunity(){
-  const controller=app.renderController;const data=(await api(base()+"/community")).community;if(!active(controller))return;
+  const controller=app.renderController;
+  const [summary,roleResult]=await Promise.all([api(base()+"/community"),api(base()+"/roles")]);
+  if(!active(controller))return;
+  const data=summary.community;
+  let roles=roleResult.roles||[];
   const grid=el("div","stats");
   for(const [icon,label,value,note] of [
     ["◉","Активны сегодня",data.active_today,"Участники с прогрессом задания"],
@@ -453,7 +466,54 @@ async function renderCommunity(){
   right.append(p("Участники пишут 5 сообщений с интервалом минимум 60 секунд. За каждое засчитанное сообщение начисляется XP, а после выполнения можно получить 35 монет."));
   right.append(p("Команды: /mission — прогресс, /claim — получить награду, /thanks — поблагодарить другого участника (ответом)."));
   right.append(p("Сброс и выдача новых попыток происходят в 00:00 UTC. Все награды исключительно игровые."));
-  content.replaceChildren(grid,append(el("div","split"),left,right));
+  const rolePanel=panel("Роли участников","Теги Telegram · отображаются рядом с именем");
+  rolePanel.append(p("Теги не меняют права доступа. Для управления ими выдайте KREW право can_manage_tags."));
+  const roleForm=el("div","role-form");
+  const uidLabel=el("label","form-label","Telegram ID участника");
+  const uidInput=el("input","field");
+  uidInput.inputMode="numeric";uidInput.placeholder="Например: 123456789";uidInput.autocomplete="off";
+  uidLabel.append(uidInput);
+  const tagLabel=el("label","form-label","Роль · не более 16 символов");
+  const tagInput=el("input","field");
+  tagInput.placeholder="VIP, Активист, Помощник";tagInput.maxLength=16;
+  tagInput.autocomplete="off";
+  tagLabel.append(tagInput);
+  const action=el("button","primary","Назначить роль");
+  action.type="button";
+  append(roleForm,uidLabel,tagLabel,action);
+  rolePanel.append(roleForm);
+  rolePanel.append(p("Чтобы снять тег, укажи ID и оставь поле роли пустым. Действие будет записано в журнал."));
+  const roster=el("div","role-list");
+  function drawRoles(){
+    roster.replaceChildren();
+    if(!roles.length){roster.append(empty("Пока нет назначенных ролей"));return;}
+    for(const record of roles){
+      const row=el("div","list-row");
+      const identity=append(el("div",""),el("div","row-title",record.name||("Участник #"+record.user_id)),
+                                  el("div","row-sub","ID "+record.user_id));
+      const chip=el("span","role-chip",record.tag);
+      append(row,identity,chip);roster.append(row);
+    }
+  }
+  drawRoles();
+  rolePanel.append(roster);
+  action.onclick=async()=>{
+    const value=uidInput.value.trim(), tag=tagInput.value.trim();
+    if(!/^\d{1,16}$/.test(value)||Number(value)<=0||Number(value)>=2**52){
+      notify("Укажи корректный Telegram ID участника.",true);return;
+    }
+    if(tag.length>16){notify("Роль не длиннее 16 символов.",true);return;}
+    action.disabled=true;
+    try{
+      const result=await api(base()+"/roles","POST",{user_id:Number(value),tag});
+      roles=result.roles||[];drawRoles();
+      tagInput.value="";
+      notify(tag?"Роль назначена в Telegram":"Роль удалена");
+      haptic();
+    }catch(error){notify(error.message,true);}
+    finally{action.disabled=false;}
+  };
+  content.replaceChildren(grid,append(el("div","split"),left,right),rolePanel);
 }
 
 // KREW Control Center 2.0: responsive navigation, abort-safe updates, interactive analytics.

@@ -16,6 +16,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit, parse_qsl
 from krew.api import TelegramAPI, TelegramError
+from krew.roles import clean_tag
 from krew.db import Database, FIELDS
 from krew.rules import clean_word, normalize_domain
 from krew.core import BotCore
@@ -25,6 +26,7 @@ LOG = logging.getLogger("krew.web")
 CHAT_RE = re.compile(r"^/api/chats/(-\d+)/(overview|settings|reports)$")
 REPORT_RE = re.compile(r"^/api/chats/(-\d+)/reports/(\d+)/(close|warn|reject)$")
 EXTRA_RE = re.compile(r"^/api/chats/(-\d+)/(analytics|audit|rulesets|words|domains|community)$")
+ROLES_RE = re.compile(r"^/api/chats/(-\d+)/roles$")
 
 
 class WebError(Exception):
@@ -124,6 +126,43 @@ class Application:
                                     {"warn_limit":cfg["warn_limit"], "rules":cfg["rules"], "welcome_text":cfg["welcome_text"], "mention_limit":cfg["mention_limit"]}}
                     if endpoint == "reports" and method == "GET":
                         return 200, {"reports":with_db.reports(chat_id),"history":with_db.report_history(chat_id)}
+                roles_match = ROLES_RE.fullmatch(path)
+                if roles_match:
+                    chat_id = int(roles_match[1])
+                    self.authorize_chat(with_db, chat_id, user_id)
+                    if method == "GET":
+                        return 200, {"roles": with_db.role_tags(chat_id)}
+                    if method == "POST":
+                        if (not isinstance(data, dict) or set(data) != {"user_id", "tag"}
+                                or type(data["user_id"]) is not int or data["user_id"] <= 0
+                                or data["user_id"] >= 2**52 or not isinstance(data["tag"], str)):
+                            raise WebError(400, "Нужны Telegram ID участника и название роли")
+                        target_id = data["user_id"]
+                        try:
+                            tag = clean_tag(data["tag"]) if data["tag"].strip() else ""
+                        except ValueError as exc:
+                            raise WebError(400, str(exc)) from None
+                        try:
+                            member = self.api.call("getChatMember", chat_id=chat_id, user_id=target_id)
+                        except TelegramError:
+                            raise WebError(503, "Не удалось проверить участника в Telegram") from None
+                        if member.get("status") not in ("member", "restricted"):
+                            raise WebError(409, "Теги доступны только обычным участникам группы")
+                        if member.get("status") == "restricted" and not member.get("is_member", True):
+                            raise WebError(409, "Участник не состоит в группе")
+                        try:
+                            self.api.call("setChatMemberTag", chat_id=chat_id,
+                                          user_id=target_id, tag=tag)
+                        except TelegramError:
+                            raise WebError(403, "Нужно право бота can_manage_tags для управления тегами") from None
+                        who = member.get("user") or {}
+                        name = " ".join(filter(None, (who.get("first_name", ""),
+                                                       who.get("last_name", ""))))
+                        with_db.set_role_tag(chat_id, target_id, tag, user_id, name)
+                        with_db.log_action(chat_id, user_id, target_id,
+                                           "role" if tag else "unrole", tag)
+                        return 200, {"roles": with_db.role_tags(chat_id)}
+                    raise WebError(405, "Метод не разрешён")
                 match = EXTRA_RE.fullmatch(path)
                 if match:
                     chat_id, endpoint = int(match[1]), match[2]

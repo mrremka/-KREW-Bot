@@ -171,3 +171,24 @@ p{color:var(--muted);font-size:12px;line-height:1.65;margin:0 0 14px}
   .more-menu button:hover,.more-menu button:focus-visible{background:#2b3649}
   .more-menu button>span{width:22px;color:var(--accent);font-size:19px;text-align:center}
 }
+
+/* RC9 · Telegram roles */
+.role-form{
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;
+  align-items:end;gap:12px;margin:16px 0;
+}
+.role-form .form-label{display:flex;flex-direction:column;gap:8px;min-width:0}
+.role-form .field{width:100%;min-width:0}
+.role-form .primary{min-height:44px;white-space:nowrap}
+.role-list{display:grid;gap:6px;margin-top:14px}
+.role-chip{
+  display:inline-flex;align-items:center;justify-content:center;
+  max-width:160px;padding:7px 12px;border-radius:999px;
+  background:rgba(138,128,234,.12);color:#c8bfff;
+  border:1px solid rgba(151,139,241,.27);
+  font-weight:650;font-size:12px;line-height:1.35;overflow-wrap:anywhere;
+}
+@media(max-width:760px){
+  .role-form{grid-template-columns:1fr;gap:10px}
+  .role-form .primary{width:100%}
+}

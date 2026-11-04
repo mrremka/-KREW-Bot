@@ -179,6 +179,23 @@ class Database:
         );
         CREATE INDEX IF NOT EXISTS idx_kudos_day ON kudos(day);
         """)
+        # RC9: visible Telegram role tags and bounded, explicit voice requests.
+        self.conn.executescript("""
+        CREATE TABLE IF NOT EXISTS role_tags (
+            chat_id INTEGER NOT NULL, user_id INTEGER NOT NULL,
+            tag TEXT NOT NULL, assigned_by INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            PRIMARY KEY(chat_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_role_tags_chat ON role_tags(chat_id, tag);
+        CREATE TABLE IF NOT EXISTS voice_usage (
+            chat_id INTEGER NOT NULL, user_id INTEGER NOT NULL,
+            day TEXT NOT NULL, used INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY(chat_id, user_id, day)
+        );
+        """)
+        self.conn.execute("DELETE FROM voice_usage WHERE day < ?",
+                          ((datetime.now(timezone.utc) - timedelta(days=3)).date().isoformat(),))
         member_column_names = {r[1] for r in self.conn.execute("PRAGMA table_info(members)")}
         if "reputation" not in member_column_names:
             self.conn.execute("ALTER TABLE members ADD COLUMN reputation INTEGER NOT NULL DEFAULT 0")
@@ -204,6 +221,53 @@ class Database:
 
     def close(self) -> None:
         self.conn.close()
+
+    def set_role_tag(self, chat_id: int, user_id: int, tag: str, actor_id: int,
+                     name: str = "") -> None:
+        """Call only after Telegram accepted the visible member tag."""
+        self.ensure_chat(chat_id)
+        self.ensure_member(chat_id, user_id, name)
+        if tag:
+            self.conn.execute("""INSERT INTO role_tags(chat_id, user_id, tag, assigned_by, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(chat_id, user_id) DO UPDATE SET
+                  tag=excluded.tag, assigned_by=excluded.assigned_by,
+                  updated_at=excluded.updated_at""",
+                (chat_id, user_id, tag, actor_id, int(time.time())))
+        else:
+            self.conn.execute("DELETE FROM role_tags WHERE chat_id=? AND user_id=?",
+                              (chat_id, user_id))
+
+    def role_tag(self, chat_id: int, user_id: int) -> str:
+        row = self.conn.execute("SELECT tag FROM role_tags WHERE chat_id=? AND user_id=?",
+                                (chat_id, user_id)).fetchone()
+        return str(row["tag"]) if row else ""
+
+    def role_tags(self, chat_id: int, limit: int = 20) -> list[dict]:
+        rows = self.conn.execute("""SELECT r.user_id, r.tag, COALESCE(m.name,'') AS name
+            FROM role_tags r LEFT JOIN members m
+              ON m.chat_id=r.chat_id AND m.user_id=r.user_id
+            WHERE r.chat_id=? ORDER BY r.updated_at DESC LIMIT ?""",
+            (chat_id, min(30, max(1, limit)))).fetchall()
+        return [dict(row) for row in rows]
+
+    def reserve_voice_request(self, chat_id: int, user_id: int,
+                              daily_limit: int = 3) -> bool:
+        """Reserve a daily quota before sending any audio to the speech API."""
+        day = datetime.now(timezone.utc).date().isoformat()
+        self.conn.execute("""INSERT OR IGNORE INTO voice_usage(chat_id,user_id,day,used)
+                             VALUES(?,?,?,0)""", (chat_id,user_id,day))
+        cursor = self.conn.execute("""UPDATE voice_usage SET used=used+1
+                    WHERE chat_id=? AND user_id=? AND day=? AND used<?""",
+                    (chat_id,user_id,day,daily_limit))
+        return bool(cursor.rowcount)
+
+    def remaining_voice_requests(self, chat_id: int, user_id: int,
+                                 daily_limit: int = 3) -> int:
+        day = datetime.now(timezone.utc).date().isoformat()
+        row = self.conn.execute("SELECT used FROM voice_usage WHERE chat_id=? AND user_id=? AND day=?",
+                                (chat_id,user_id,day)).fetchone()
+        return max(0,daily_limit-(int(row["used"]) if row else 0))
 
     def ensure_chat(self, chat_id: int, title: str = "") -> dict:
         self.conn.execute("INSERT OR IGNORE INTO chats(chat_id, title) VALUES (?, ?)", (chat_id, title[:128]))

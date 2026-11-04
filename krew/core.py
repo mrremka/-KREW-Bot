@@ -9,9 +9,12 @@ import random
 import re
 import secrets
 import time
+import threading
 from datetime import datetime, timedelta, timezone
 from krew.db import Database
 from krew.api import TelegramError
+from krew.roles import clean_tag, EXAMPLES
+from krew.speech import transcribe_voice, SpeechError, MAX_VOICE_BYTES, MAX_VOICE_SECONDS
 from krew.ui import help_page, keyboard as help_keyboard, report as ui_report
 from krew.rules import FloodGuard, clean_word, contains_blocked_word, disallowed_link, normalize_domain, excessive_mentions, excessive_caps
 
@@ -42,7 +45,7 @@ QUIZZES = [
 ]
 BADGES = {"spark": ("✨ Искра", 40), "heart": ("💜 Сердце", 100), "star": ("⭐ Звезда", 220), "crown": ("👑 Корона", 500)}
 LABELS = {"antispam": "Антиспам", "antilinks": "Защита от ссылок", "antiforward": "Запрет пересылок", "antiraid": "Авто-анти-рейд", "captcha": "Проверка новичков", "welcome": "Приветствия", "fun": "Развлечения", "levels": "Уровни", "antimentions": "Массовые упоминания", "anticaps": "CAPS-спам"}
-ADMIN_COMMANDS = {"status", "pin", "unpin", "setup", "warn", "warnings", "unwarn", "mute", "unmute", "ban", "kick", "unban", "badword", "setrules", "modlog", "warnlimit", "welcometext", "allowlink", "raid", "reports", "stats", "diagnostics", "panel", "digest", "shield", "mentionlimit"}
+ADMIN_COMMANDS = {"status", "pin", "unpin", "setup", "warn", "warnings", "unwarn", "mute", "unmute", "ban", "kick", "unban", "badword", "setrules", "modlog", "warnlimit", "welcometext", "allowlink", "raid", "reports", "stats", "diagnostics", "panel", "digest", "shield", "mentionlimit", "role", "unrole", "admintitle", "modcenter"}
 FUN_COMMANDS = {"daily", "roll", "coin", "eightball", "duel", "quiz", "fortune", "shop", "buy", "rps", "achievements", "mission", "claim", "thanks"}
 COMMAND_PATTERN = re.compile(r"^/([\w]+)(?:@([\w]+))?(?:\s+([\s\S]*))?$", re.UNICODE)
 
@@ -96,6 +99,7 @@ class BotCore:
         self._words_cache: dict[int, tuple[list[str], float]] = {}
         self._joins: dict[int, deque] = defaultdict(deque)
         self._last_maintenance = 0.0
+        self._voice_slots = threading.BoundedSemaphore(2)
 
     def call(self, method: str, **data):
         return self.api.call(method, **data)
@@ -237,6 +241,107 @@ class BotCore:
             except TelegramError:
                 pass
 
+    def voice_help(self, chat_id: int) -> None:
+        enabled = bool(os.getenv("GROQ_API_KEY", "").strip())
+        status = "доступно" if enabled else "ожидает настройки ключа"
+        self.send(chat_id,
+            "🎙 <b>KREW · Распознавание голоса</b>\n\n"
+            "Ответь командой <code>/transcribe</code> на своё голосовое сообщение.\n"
+            "• До 2 минут и 5 МБ\n"
+            "• До 3 запросов в день на пользователя и чат\n"
+            "• Расшифровка не сохраняется в базе\n\n"
+            "Аудио передаётся сервису Groq Whisper только после твоего запроса. "
+            "Голосовые других участников не отправляются.\n"
+            f"<i>Статус: {status}.</i>")
+
+    def transcribe_command(self, msg: dict, user: dict) -> None:
+        chat_id, user_id = msg["chat"]["id"], int(user["id"])
+        original = msg.get("reply_to_message") or {}
+        voice = original.get("voice") or {}
+        if not voice or not voice.get("file_id"):
+            self.send(chat_id, "🎙 Ответь командой <code>/transcribe</code> на своё голосовое. Подробнее: /voicehelp")
+            return
+        author = original.get("from") or {}
+        if int(author.get("id") or 0) != user_id:
+            self.send(chat_id, "🔐 Распознавать можно только собственные голосовые. "
+                               "Попроси автора отправить /transcribe самостоятельно.")
+            return
+        seconds = int(voice.get("duration") or 0)
+        size = int(voice.get("file_size") or 0)
+        if seconds > MAX_VOICE_SECONDS or size > MAX_VOICE_BYTES:
+            self.send(chat_id, "🎙 Лимит: голосовое до 2 минут и 5 МБ.")
+            return
+        token = os.getenv("BOT_TOKEN", "").strip()
+        key = os.getenv("GROQ_API_KEY", "").strip()
+        if not key or not token:
+            self.send(chat_id, "🎙 Распознавание ещё не настроено владельцем KREW. "
+                               "Нужен ключ GROQ_API_KEY в локальном файле .env. Подробнее: /voicehelp")
+            return
+        if not self._allow_fun(chat_id, user_id, "transcribe", 90):
+            self.send(chat_id, "⏳ Следующее распознавание доступно через минуту-полторы.")
+            return
+        if not self._voice_slots.acquire(blocking=False):
+            self.send(chat_id, "⏳ Два голосовых уже обрабатываются. Попробуй немного позже.")
+            return
+        if not self.db.reserve_voice_request(chat_id, user_id):
+            self._voice_slots.release()
+            self.send(chat_id, "🎙 Лимит 3 расшифровки в день исчерпан. Обновится в 00:00 UTC.")
+            return
+        remaining = self.db.remaining_voice_requests(chat_id, user_id)
+        try:
+            self.send(chat_id, f"🎙 <b>Распознаю голосовое…</b>\nОсталось запросов сегодня: {remaining}")
+        except TelegramError:
+            self._voice_slots.release()
+            raise
+        threading.Thread(target=self._transcribe_worker, args=(
+            chat_id, voice["file_id"], token, key), daemon=True).start()
+
+    def _transcribe_worker(self, chat_id: int, file_id: str, token: str, key: str) -> None:
+        try:
+            text = transcribe_voice(self.api, token, key, file_id)
+            self.send(chat_id, "🎙 <b>Расшифровка KREW</b>\n\n" + esc(text) +
+                            "\n\n<i>Текст создан автоматически; возможны ошибки.</i>")
+        except SpeechError as exc:
+            try:
+                self.send(chat_id, "⚠️ " + esc(exc))
+            except TelegramError:
+                pass
+        except Exception:
+            LOGGER.warning("Ошибка распознавания голосового, без вывода секретов")
+            try:
+                self.send(chat_id, "⚠️ Не удалось обработать голосовое.")
+            except TelegramError:
+                pass
+        finally:
+            self._voice_slots.release()
+
+    def role_roster(self, chat_id: int) -> None:
+        tags = self.db.role_tags(chat_id)
+        if not tags:
+            self.send(chat_id, "🏷 <b>Роли KREW</b>\n\nПока никто не получил тег. "
+                               "Администраторам: ответь <code>/role VIP</code> на сообщение участника.")
+            return
+        lines = [f"• <b>{esc(row['tag'])}</b> — {esc(row['name'] or str(row['user_id']))}"
+                 for row in tags]
+        self.send(chat_id, "🏷 <b>Роли участников</b>\n\n" + "\n".join(lines) +
+                           "\n\n<i>Показаны последние 20. Теги не выдают права администратора.</i>")
+
+    def member_card(self, msg: dict, user: dict) -> None:
+        chat_id = msg["chat"]["id"]
+        target = (msg.get("reply_to_message") or {}).get("from") or user
+        if not target.get("id"):
+            return
+        uid = int(target["id"])
+        p = self.db.profile(chat_id, uid, human_name(target))
+        tag = self.db.role_tag(chat_id, uid) or "Участник"
+        warn = self.db.get_warn(chat_id, uid)
+        rows = [("Роль", tag), ("Уровень", str(level(p["xp"]))),
+                ("Опыт", str(p["xp"])), ("Репутация", str(p["reputation"])),
+                ("Предупреждения", str(warn))]
+        fallback, rich = ui_report("◈ KREW · Участник", rows,
+                                   "Данные: " + human_name(target))
+        self.send_rich(chat_id, rich, fallback)
+
     def on_message(self, msg: dict) -> None:
         chat = msg.get("chat") or {}
         chat_id = chat.get("id")
@@ -257,6 +362,12 @@ class BotCore:
                 return
             if cmd == "ping":
                 self.send(chat_id, f"🏓 Pong! KREW <code>{esc(installed_version())}</code> работает.")
+                return
+            if cmd == "voicehelp":
+                self.voice_help(chat_id)
+                return
+            if cmd == "transcribe" and uid:
+                self.transcribe_command(msg, user)
                 return
             if cmd == "start" and uid:
                 self.db.register_private(uid)
@@ -354,7 +465,7 @@ class BotCore:
                 self.send(chat_id,"⚙️ Мини-приложение ещё не настроено. В .env укажи WEBAPP_URL=https://ваш-домен.")
             return
         if command == "privacy":
-            self.send(chat_id, "🔐 <b>Приватность KREW</b>\nБот хранит ID чатов и пользователей, имена, счётчики активности, монеты, предупреждения, настройки, причины решений по жалобам и ограниченный журнал модерации (30 дней). <b>Содержимое сообщений не сохраняется</b>. Для добровольной рассылки новостей хранится флаг подписки и статус доставки по версии. Сообщения обрабатываются для антиспама и фильтров. Уведомления: /notify on|off и /news on|off.")
+            self.send(chat_id, "🔐 <b>Приватность KREW</b>\nБот хранит ID чатов и пользователей, имена, счётчики активности, роли, монеты, предупреждения, настройки, причины решений по жалобам и ограниченный журнал модерации (30 дней). <b>Содержимое сообщений не сохраняется</b>. Для добровольной рассылки новостей хранится флаг подписки и статус доставки по версии. По запросу /transcribe собственное голосовое передаётся сервису Groq для распознавания, аудиофайл и результат в базе не сохраняются, ведётся только суточный счётчик обращений. Уведомления: /notify on|off и /news on|off.")
             return
         self.show_help(chat_id, private=True)
 
@@ -436,12 +547,29 @@ class BotCore:
         if cmd == "rules":
             self.send(chat_id, "📜 <b>Правила чата</b>\n\n" + esc(self.db.get_chat(chat_id)["rules"]))
             return
+        if cmd == "voicehelp":
+            self.voice_help(chat_id)
+            return
+        if cmd == "transcribe":
+            self.transcribe_command(msg, user)
+            return
+        if cmd == "myrole":
+            tag = self.db.role_tag(chat_id, user_id) or "Участник"
+            self.send(chat_id, f"🏷 {mention(user)}\n<b>Твоя роль:</b> {esc(tag)}")
+            return
+        if cmd == "whois":
+            self.member_card(msg, user)
+            return
+        if cmd == "roles":
+            self.role_roster(chat_id)
+            return
         if cmd == "profile":
             target = (msg.get("reply_to_message") or {}).get("from") or user
             p = self.db.profile(chat_id, target["id"], human_name(target))
             warnings = self.db.get_warn(chat_id, target["id"])
             badge = BADGES.get(p["active_badge"], ("Нет", 0))[0]
-            rows = [('Уровень', str(level(p['xp']))), ('Опыт', str(p['xp'])),
+            rows = [('Роль', self.db.role_tag(chat_id, target["id"]) or 'Участник'),
+                    ('Уровень', str(level(p['xp']))), ('Опыт', str(p['xp'])),
                     ('Сообщений', str(p['messages'])), ('Монеты', str(p['coins'])),
                     ('Значок', badge), ('Благодарности', str(p['reputation'])),
                     ('Предупреждения', str(warnings))]
@@ -491,7 +619,64 @@ class BotCore:
     def admin_command(self, msg: dict, cmd: str, args: str, actor: dict) -> None:
         chat_id, admin_id = msg["chat"]["id"], actor["id"]
         try:
-            if cmd == 'status':
+            if cmd in ('role', 'unrole'):
+                target = self.target_from_reply(msg, actor)
+                member_id = int(target['id'])
+                if cmd == 'role':
+                    tag = clean_tag(args)
+                else:
+                    tag = ''
+                # Telegram verifies can_manage_tags. Never persist an unsynced tag.
+                try:
+                    self.call('setChatMemberTag', chat_id=chat_id, user_id=member_id, tag=tag)
+                except TelegramError as exc:
+                    if exc.status_code == 400 or exc.status_code == 403:
+                        self.send(chat_id, "🏷 Не удалось назначить тег. У KREW должно быть "
+                                           "право «Управление тегами участников» (can_manage_tags).")
+                        return
+                    raise
+                self.db.set_role_tag(chat_id, member_id, tag, admin_id, human_name(target))
+                self.db.log_action(chat_id, admin_id, member_id,
+                                   'role' if tag else 'unrole', tag)
+                if tag:
+                    self.send(chat_id, f"🏷 <b>Роль назначена</b>\n"
+                                       f"{mention(target)} · <b>{esc(tag)}</b>\n"
+                                       "Тег отображается рядом с именем в поддерживаемых клиентах Telegram.")
+                else:
+                    self.send(chat_id, f"🏷 Тег удалён у {mention(target)}.")
+            elif cmd == 'admintitle':
+                admin_member = self.call("getChatMember", chat_id=chat_id, user_id=admin_id)
+                if admin_member.get("status") != "creator":
+                    raise ValueError("Изменять звания действующих администраторов может только владелец группы.")
+                target = (msg.get("reply_to_message") or {}).get("from")
+                if not target or target.get("id") == admin_id:
+                    raise ValueError("Ответь /admintitle Звание на сообщение другого администратора.")
+                who = self.call("getChatMember", chat_id=chat_id, user_id=int(target["id"]))
+                if who.get("status") != "administrator" or not who.get("can_be_edited"):
+                    raise ValueError("Telegram разрешает изменять звание только администратора, назначенного ботом.")
+                title = " ".join(args.split())
+                if (not 1 <= len(title) <= 16 or
+                        not all(ch.isalnum() or ch in " _-" for ch in title)):
+                    raise ValueError("Звание: 1–16 букв/цифр, без эмодзи. Пример: /admintitle Куратор")
+                self.call("setChatAdministratorCustomTitle", chat_id=chat_id,
+                          user_id=int(target["id"]), custom_title=title)
+                self.db.log_action(chat_id, admin_id, int(target["id"]), "admintitle", title)
+                self.send(chat_id, f"◈ <b>Звание администратора обновлено</b>\n"
+                                   f"{mention(target)} · {esc(title)}")
+            elif cmd == 'modcenter':
+                st = self.db.stats(chat_id)
+                self.send(chat_id,
+                    "🛡 <b>KREW · Центр модерации</b>\n\n"
+                    f"🚩 Открытых жалоб: <b>{st['reports']}</b>\n"
+                    f"⚠️ Предупреждений: <b>{st['warnings']}</b>\n"
+                    f"📋 Действий за 30 дней: <b>{st['actions']}</b>\n\n"
+                    "<code>/role VIP</code> — назначить тег ответом\n"
+                    "<code>/unrole</code> — снять тег ответом\n"
+                    "<code>/admintitle</code> — звание администратора (владелец)\n"
+                    "<code>/reports</code> — очередь жалоб\n"
+                    "<code>/setup</code> — защита и настройки\n\n"
+                    "<i>Теги не наделяют участников правами модератора.</i>")
+            elif cmd == 'status':
                 cfg = self.db.get_chat(chat_id)
                 st = self.db.stats(chat_id)
                 status_rows = [('Версия', installed_version()),
